@@ -14,6 +14,8 @@ import android.os.Bundle
 import android.os.PersistableBundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
@@ -51,6 +53,17 @@ class MainActivity : AppCompatActivity() {
         android.Manifest.permission.ACCESS_COARSE_LOCATION
     )
 
+    var latitude: Double = 0.0
+    var longitude: Double = 0.0
+
+    var startMapActivityResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result?.resultCode ?: 0 == Activity.RESULT_OK) { //엘비스 연산자 result의 resultcode가 null이라면 0을 resultCode에 넣고 이것은 Activity의 ResultOK와 같음
+            latitude = result?.data?.getDoubleExtra("latitude", 0.0) ?: 0.0
+            longitude = result?.data?.getDoubleExtra("longitude", 0.0) ?: 0.0
+            updateUI()
+        }
+    }
+
     lateinit var getGPSPermissionLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,6 +75,17 @@ class MainActivity : AppCompatActivity() {
         checkAllPermissions()
         updateUI()
         setRefreshButton()
+
+        setFab()
+    }
+
+    private fun setFab(){
+        binding.fab.setOnClickListener {
+            val intent = Intent(this, MapActivity::class.java)
+            intent.putExtra("currentLat", latitude)
+            intent.putExtra("currentLng", longitude)
+            startMapActivityResult.launch(intent)
+        }
     }
 
     private fun setRefreshButton(){
@@ -73,8 +97,11 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI(){
         locationProvider = LocationProvider(this@MainActivity)
 
-        val latitude: Double = locationProvider.getLocationLatitude()
-        val longitude: Double = locationProvider.getLocationLongitude()
+        if(latitude == 0.0 || longitude == 0.0){
+            latitude = locationProvider.getLocationLatitude()
+            longitude = locationProvider.getLocationLongitude()
+        }
+
 
         if(latitude != 0.0 && longitude != 0.0){
             //1. 현재위치를 가져오고 ui업데이트
